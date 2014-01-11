@@ -1110,11 +1110,6 @@ function is_overflow(x) {
         ) || (x[9] > P25);
 }
 
-function modulo(a, b) {
-    return a - Math.floor(a/b)*b;
-
-}
-
 function ToInt8(x) {
     if (typeof x !== 'number')
         x = x.getLowBits();
@@ -1763,7 +1758,7 @@ function curve25519_core(Px, s, k, Gx)
     for (i = 0; i < 32; i++)
         v[i] = 0;
     i = mula_small(v, x, 0, h, 32, -1);
-    mula_small(v, v, 0, ORDER, 32, Math.floor((15-v[31])/16));
+    mula_small(v, v, 0, ORDER, 32, Math.floor((15-ToInt8(v[31]))/16));
     mula32(tmp1, v, s, 32, 1);
     divmod(tmp2, tmp1, 64, ORDER, 32);
     for (w = 0, i = 0; i < 32; i++)
