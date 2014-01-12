@@ -1,476 +1,28 @@
-// Long class from Google Closure Library (Apache license)
-// https://code.google.com/p/closure-library/source/browse/closure/goog/math/long.js
+// based on source of Long class from Google Closure Library
 
-/**
- * @fileoverview Defines a Long class for representing a 64-bit two's-complement
- * integer value, which faithfully simulates the behavior of a Java "long". This
- * implementation is derived from LongLib in GWT.
- *
- */
-
-/**
- * Constructs a 64-bit two's-complement integer, given its low and high 32-bit
- * values as *signed* integers.  See the from* functions below for more
- * convenient ways of constructing Longs.
- *
- * The internal representation of a long is the two given signed, 32-bit values.
- * We use 32-bit pieces because these are the size of integers on which
- * Javascript performs bit-operations.  For operations like addition and
- * multiplication, we split each number into 16-bit pieces, which can easily be
- * multiplied within Javascript's floating-point representation without overflow
- * or change in sign.
- *
- * In the algorithms below, we frequently reduce the negative case to the
- * positive case by negating the input(s) and then post-processing the result.
- * Note that we must ALWAYS check specially whether those values are MIN_VALUE
- * (-2^63) because -MIN_VALUE == MIN_VALUE (since 2^63 cannot be represented as
- * a positive number, it overflows back into a negative).  Not handling this
- * case would often result in infinite recursion.
- *
- * @param {number} low  The low (signed) 32 bits of the long.
- * @param {number} high  The high (signed) 32 bits of the long.
- * @constructor
- */
 Long = function(low, high) {
-    /**
-     * @type {number}
-     * @private
-     */
     this.low_ = low | 0;  // force into 32 signed bits.
-
-    /**
-     * @type {number}
-     * @private
-     */
     this.high_ = high | 0;  // force into 32 signed bits.
 };
 
-
-// NOTE: Common constant values ZERO, ONE, NEG_ONE, etc. are defined below the
-// from* methods on which they depend.
-
-
-/**
- * A cache of the Long representations of small integer values.
- * @type {!Object}
- * @private
- */
-Long.IntCache_ = {};
-
-
-/**
- * Returns a Long representing the given (32-bit) integer value.
- * @param {number} value The 32-bit integer in question.
- * @return {!Long} The corresponding Long value.
- */
 Long.fromInt = function(value) {
-    if (-128 <= value && value < 128) {
-        var cachedObj = Long.IntCache_[value];
-        if (cachedObj) {
-            return cachedObj;
-        }
-    }
-
-    var obj = new Long(value | 0, value < 0 ? -1 : 0);
-    if (-128 <= value && value < 128) {
-        Long.IntCache_[value] = obj;
-    }
-    return obj;
+    return new Long(value | 0, value < 0 ? -1 : 0);
 };
 
-
-/**
- * Returns a Long representing the given value, provided that it is a finite
- * number.  Otherwise, zero is returned.
- * @param {number} value The number in question.
- * @return {!Long} The corresponding Long value.
- */
-Long.fromNumber = function(value) {
-    if (isNaN(value) || !isFinite(value)) {
-        return Long.ZERO;
-    } else if (value <= -Long.TWO_PWR_63_DBL_) {
-        return Long.MIN_VALUE;
-    } else if (value + 1 >= Long.TWO_PWR_63_DBL_) {
-        return Long.MAX_VALUE;
-    } else if (value < 0) {
-        return Long.fromNumber(-value).negate();
-    } else {
-        return new Long(
-            (value % Long.TWO_PWR_32_DBL_) | 0,
-            (value / Long.TWO_PWR_32_DBL_) | 0);
-    }
-};
-
-
-/**
- * Returns a Long representing the 64-bit integer that comes by concatenating
- * the given high and low bits.  Each is assumed to use 32 bits.
- * @param {number} lowBits The low 32-bits.
- * @param {number} highBits The high 32-bits.
- * @return {!Long} The corresponding Long value.
- */
 Long.fromBits = function(lowBits, highBits) {
     return new Long(lowBits, highBits);
 };
 
-
-/**
- * Returns a Long representation of the given string, written using the given
- * radix.
- * @param {string} str The textual representation of the Long.
- * @param {number=} opt_radix The radix in which the text is written.
- * @return {!Long} The corresponding Long value.
- */
-Long.fromString = function(str, opt_radix) {
-    if (str.length == 0) {
-        throw Error('number format error: empty string');
-    }
-
-    var radix = opt_radix || 10;
-    if (radix < 2 || 36 < radix) {
-        throw Error('radix out of range: ' + radix);
-    }
-
-    if (str.charAt(0) == '-') {
-        return Long.fromString(str.substring(1), radix).negate();
-    } else if (str.indexOf('-') >= 0) {
-        throw Error('number format error: interior "-" character: ' + str);
-    }
-
-    // Do several (8) digits each time through the loop, so as to
-    // minimize the calls to the very expensive emulated div.
-    var radixToPower = Long.fromNumber(Math.pow(radix, 8));
-
-    var result = Long.ZERO;
-    for (var i = 0; i < str.length; i += 8) {
-        var size = Math.min(8, str.length - i);
-        var value = parseInt(str.substring(i, i + size), radix);
-        if (size < 8) {
-            var power = Long.fromNumber(Math.pow(radix, size));
-            result = result.multiply(power).add(Long.fromNumber(value));
-        } else {
-            result = result.multiply(radixToPower);
-            result = result.add(Long.fromNumber(value));
-        }
-    }
-    return result;
-};
-
-
-// NOTE: the compiler should inline these constant values below and then remove
-// these variables, so there should be no runtime penalty for these.
-
-
-/**
- * Number used repeated below in calculations.  This must appear before the
- * first call to any from* function below.
- * @type {number}
- * @private
- */
-Long.TWO_PWR_16_DBL_ = 1 << 16;
-
-
-/**
- * @type {number}
- * @private
- */
-Long.TWO_PWR_24_DBL_ = 1 << 24;
-
-
-/**
- * @type {number}
- * @private
- */
-Long.TWO_PWR_32_DBL_ =
-    Long.TWO_PWR_16_DBL_ * Long.TWO_PWR_16_DBL_;
-
-
-/**
- * @type {number}
- * @private
- */
-Long.TWO_PWR_31_DBL_ =
-    Long.TWO_PWR_32_DBL_ / 2;
-
-
-/**
- * @type {number}
- * @private
- */
-Long.TWO_PWR_48_DBL_ =
-    Long.TWO_PWR_32_DBL_ * Long.TWO_PWR_16_DBL_;
-
-
-/**
- * @type {number}
- * @private
- */
-Long.TWO_PWR_64_DBL_ =
-    Long.TWO_PWR_32_DBL_ * Long.TWO_PWR_32_DBL_;
-
-
-/**
- * @type {number}
- * @private
- */
-Long.TWO_PWR_63_DBL_ =
-    Long.TWO_PWR_64_DBL_ / 2;
-
-
-/** @type {!Long} */
-Long.ZERO = Long.fromInt(0);
-
-
-/** @type {!Long} */
-Long.ONE = Long.fromInt(1);
-
-
-/** @type {!Long} */
-Long.NEG_ONE = Long.fromInt(-1);
-
-
-/** @type {!Long} */
-Long.MAX_VALUE =
-    Long.fromBits(0xFFFFFFFF | 0, 0x7FFFFFFF | 0);
-
-
-/** @type {!Long} */
-Long.MIN_VALUE = Long.fromBits(0, 0x80000000 | 0);
-
-
-/**
- * @type {!Long}
- * @private
- */
-Long.TWO_PWR_24_ = Long.fromInt(1 << 24);
-
-
-/** @return {number} The value, assuming it is a 32-bit integer. */
 Long.prototype.toInt = function() {
     return this.low_;
 };
 
-
-/** @return {number} The closest floating-point representation to this value. */
-Long.prototype.toNumber = function() {
-    return this.high_ * Long.TWO_PWR_32_DBL_ +
-        this.getLowBitsUnsigned();
-};
-
-
-/**
- * @param {number=} opt_radix The radix in which the text should be written.
- * @return {string} The textual representation of this value.
- * @override
- */
-Long.prototype.toString = function(opt_radix) {
-    var radix = opt_radix || 10;
-    if (radix < 2 || 36 < radix) {
-        throw Error('radix out of range: ' + radix);
-    }
-
-    if (this.isZero()) {
-        return '0';
-    }
-
-    if (this.isNegative()) {
-        if (this.equals(Long.MIN_VALUE)) {
-            // We need to change the Long value before it can be negated, so we remove
-            // the bottom-most digit in this base and then recurse to do the rest.
-            var radixLong = Long.fromNumber(radix);
-            var div = this.div(radixLong);
-            var rem = div.multiply(radixLong).subtract(this);
-            return div.toString(radix) + rem.toInt().toString(radix);
-        } else {
-            return '-' + this.negate().toString(radix);
-        }
-    }
-
-    // Do several (6) digits each time through the loop, so as to
-    // minimize the calls to the very expensive emulated div.
-    var radixToPower = Long.fromNumber(Math.pow(radix, 6));
-
-    var rem = this;
-    var result = '';
-    while (true) {
-        var remDiv = rem.div(radixToPower);
-        var intval = rem.subtract(remDiv.multiply(radixToPower)).toInt();
-        var digits = intval.toString(radix);
-
-        rem = remDiv;
-        if (rem.isZero()) {
-            return digits + result;
-        } else {
-            while (digits.length < 6) {
-                digits = '0' + digits;
-            }
-            result = '' + digits + result;
-        }
-    }
-};
-
-
-/** @return {number} The high 32-bits as a signed value. */
-Long.prototype.getHighBits = function() {
-    return this.high_;
-};
-
-
-/** @return {number} The low 32-bits as a signed value. */
 Long.prototype.getLowBits = function() {
     return this.low_;
 };
 
-
-/** @return {number} The low 32-bits as an unsigned value. */
-Long.prototype.getLowBitsUnsigned = function() {
-    return (this.low_ >= 0) ?
-        this.low_ : Long.TWO_PWR_32_DBL_ + this.low_;
-};
-
-
-/**
- * @return {number} Returns the number of bits needed to represent the absolute
- *     value of this Long.
- */
-Long.prototype.getNumBitsAbs = function() {
-    if (this.isNegative()) {
-        if (this.equals(Long.MIN_VALUE)) {
-            return 64;
-        } else {
-            return this.negate().getNumBitsAbs();
-        }
-    } else {
-        var val = this.high_ != 0 ? this.high_ : this.low_;
-        for (var bit = 31; bit > 0; bit--) {
-            if ((val & (1 << bit)) != 0) {
-                break;
-            }
-        }
-        return this.high_ != 0 ? bit + 33 : bit + 1;
-    }
-};
-
-
-/** @return {boolean} Whether this value is zero. */
-Long.prototype.isZero = function() {
-    return this.high_ == 0 && this.low_ == 0;
-};
-
-
-/** @return {boolean} Whether this value is negative. */
-Long.prototype.isNegative = function() {
-    return this.high_ < 0;
-};
-
-
-/** @return {boolean} Whether this value is odd. */
-Long.prototype.isOdd = function() {
-    return (this.low_ & 1) == 1;
-};
-
-
-/**
- * @param {Long} other Long to compare against.
- * @return {boolean} Whether this Long equals the other.
- */
-Long.prototype.equals = function(other) {
-    return (this.high_ == other.high_) && (this.low_ == other.low_);
-};
-
-
-/**
- * @param {Long} other Long to compare against.
- * @return {boolean} Whether this Long does not equal the other.
- */
-Long.prototype.notEquals = function(other) {
-    return (this.high_ != other.high_) || (this.low_ != other.low_);
-};
-
-
-/**
- * @param {Long} other Long to compare against.
- * @return {boolean} Whether this Long is less than the other.
- */
-Long.prototype.lessThan = function(other) {
-    return this.compare(other) < 0;
-};
-
-
-/**
- * @param {Long} other Long to compare against.
- * @return {boolean} Whether this Long is less than or equal to the other.
- */
-Long.prototype.lessThanOrEqual = function(other) {
-    return this.compare(other) <= 0;
-};
-
-
-/**
- * @param {Long} other Long to compare against.
- * @return {boolean} Whether this Long is greater than the other.
- */
-Long.prototype.greaterThan = function(other) {
-    return this.compare(other) > 0;
-};
-
-
-/**
- * @param {Long} other Long to compare against.
- * @return {boolean} Whether this Long is greater than or equal to the other.
- */
-Long.prototype.greaterThanOrEqual = function(other) {
-    return this.compare(other) >= 0;
-};
-
-
-/**
- * Compares this Long with the given one.
- * @param {Long} other Long to compare against.
- * @return {number} 0 if they are the same, 1 if the this is greater, and -1
- *     if the given one is greater.
- */
-Long.prototype.compare = function(other) {
-    if (this.equals(other)) {
-        return 0;
-    }
-
-    var thisNeg = this.isNegative();
-    var otherNeg = other.isNegative();
-    if (thisNeg && !otherNeg) {
-        return -1;
-    }
-    if (!thisNeg && otherNeg) {
-        return 1;
-    }
-
-    // at this point, the signs are the same, so subtraction will not overflow
-    if (this.subtract(other).isNegative()) {
-        return -1;
-    } else {
-        return 1;
-    }
-};
-
-
-/** @return {!Long} The negation of this value. */
-Long.prototype.negate = function() {
-    if (this.equals(Long.MIN_VALUE)) {
-        return Long.MIN_VALUE;
-    } else {
-        return this.not().add(Long.ONE);
-    }
-};
-
-
-/**
- * Returns the sum of this and the given Long.
- * @param {Long} other Long to add to this one.
- * @return {!Long} The sum of this and the given Long.
- */
 Long.prototype.add = function(other) {
     // Divide each number into 4 chunks of 16 bits, and then sum the chunks.
-
     var a48 = this.high_ >>> 16;
     var a32 = this.high_ & 0xFFFF;
     var a16 = this.low_ >>> 16;
@@ -496,54 +48,9 @@ Long.prototype.add = function(other) {
     return Long.fromBits((c16 << 16) | c00, (c48 << 16) | c32);
 };
 
-
-/**
- * Returns the difference of this and the given Long.
- * @param {Long} other Long to subtract from this.
- * @return {!Long} The difference of this and the given Long.
- */
-Long.prototype.subtract = function(other) {
-    return this.add(other.negate());
-};
-
-
-/**
- * Returns the product of this and the given long.
- * @param {Long} other Long to multiply with this.
- * @return {!Long} The product of this and the other.
- */
 Long.prototype.multiply = function(other) {
-    if (this.isZero()) {
-        return Long.ZERO;
-    } else if (other.isZero()) {
-        return Long.ZERO;
-    }
-
-    if (this.equals(Long.MIN_VALUE)) {
-        return other.isOdd() ? Long.MIN_VALUE : Long.ZERO;
-    } else if (other.equals(Long.MIN_VALUE)) {
-        return this.isOdd() ? Long.MIN_VALUE : Long.ZERO;
-    }
-
-    if (this.isNegative()) {
-        if (other.isNegative()) {
-            return this.negate().multiply(other.negate());
-        } else {
-            return this.negate().multiply(other).negate();
-        }
-    } else if (other.isNegative()) {
-        return this.multiply(other.negate()).negate();
-    }
-
-    // If both longs are small, use float multiplication
-    if (this.lessThan(Long.TWO_PWR_24_) &&
-        other.lessThan(Long.TWO_PWR_24_)) {
-        return Long.fromNumber(this.toNumber() * other.toNumber());
-    }
-
     // Divide each long into 4 chunks of 16 bits, and then add up 4x4 products.
     // We can skip products that would overflow.
-
     var a48 = this.high_ >>> 16;
     var a32 = this.high_ & 0xFFFF;
     var a16 = this.low_ >>> 16;
@@ -578,256 +85,23 @@ Long.prototype.multiply = function(other) {
     return Long.fromBits((c16 << 16) | c00, (c48 << 16) | c32);
 };
 
-
-/**
- * Returns this Long divided by the given one.
- * @param {Long} other Long by which to divide.
- * @return {!Long} This Long divided by the given one.
- */
-Long.prototype.div = function(other) {
-    if (other.isZero()) {
-        throw Error('division by zero');
-    } else if (this.isZero()) {
-        return Long.ZERO;
-    }
-
-    if (this.equals(Long.MIN_VALUE)) {
-        if (other.equals(Long.ONE) ||
-            other.equals(Long.NEG_ONE)) {
-            return Long.MIN_VALUE;  // recall that -MIN_VALUE == MIN_VALUE
-        } else if (other.equals(Long.MIN_VALUE)) {
-            return Long.ONE;
-        } else {
-            // At this point, we have |other| >= 2, so |this/other| < |MIN_VALUE|.
-            var halfThis = this.shiftRight(1);
-            var approx = halfThis.div(other).shiftLeft(1);
-            if (approx.equals(Long.ZERO)) {
-                return other.isNegative() ? Long.ONE : Long.NEG_ONE;
-            } else {
-                var rem = this.subtract(other.multiply(approx));
-                var result = approx.add(rem.div(other));
-                return result;
-            }
-        }
-    } else if (other.equals(Long.MIN_VALUE)) {
-        return Long.ZERO;
-    }
-
-    if (this.isNegative()) {
-        if (other.isNegative()) {
-            return this.negate().div(other.negate());
-        } else {
-            return this.negate().div(other).negate();
-        }
-    } else if (other.isNegative()) {
-        return this.div(other.negate()).negate();
-    }
-
-    // Repeat the following until the remainder is less than other:  find a
-    // floating-point that approximates remainder / other *from below*, add this
-    // into the result, and subtract it from the remainder.  It is critical that
-    // the approximate value is less than or equal to the real value so that the
-    // remainder never becomes negative.
-    var res = Long.ZERO;
-    var rem = this;
-    while (rem.greaterThanOrEqual(other)) {
-        // Approximate the result of division. This may be a little greater or
-        // smaller than the actual value.
-        var approx = Math.max(1, Math.floor(rem.toNumber() / other.toNumber()));
-
-        // We will tweak the approximate result by changing it in the 48-th digit or
-        // the smallest non-fractional digit, whichever is larger.
-        var log2 = Math.ceil(Math.log(approx) / Math.LN2);
-        var delta = (log2 <= 48) ? 1 : Math.pow(2, log2 - 48);
-
-        // Decrease the approximation until it is smaller than the remainder.  Note
-        // that if it is too large, the product overflows and is negative.
-        var approxRes = Long.fromNumber(approx);
-        var approxRem = approxRes.multiply(other);
-        while (approxRem.isNegative() || approxRem.greaterThan(rem)) {
-            approx -= delta;
-            approxRes = Long.fromNumber(approx);
-            approxRem = approxRes.multiply(other);
-        }
-
-        // We know the answer can't be zero... and actually, zero would cause
-        // infinite recursion since we would make no progress.
-        if (approxRes.isZero()) {
-            approxRes = Long.ONE;
-        }
-
-        res = res.add(approxRes);
-        rem = rem.subtract(approxRem);
-    }
-    return res;
-};
-
-
-/**
- * Returns this Long modulo the given one.
- * @param {Long} other Long by which to mod.
- * @return {!Long} This Long modulo the given one.
- */
-Long.prototype.modulo = function(other) {
-    return this.subtract(this.div(other).multiply(other));
-};
-
-
-/** @return {!Long} The bitwise-NOT of this value. */
-Long.prototype.not = function() {
-    return Long.fromBits(~this.low_, ~this.high_);
-};
-
-
-/**
- * Returns the bitwise-AND of this Long and the given one.
- * @param {Long} other The Long with which to AND.
- * @return {!Long} The bitwise-AND of this and the other.
- */
-Long.prototype.and = function(other) {
-    return Long.fromBits(this.low_ & other.low_,
-        this.high_ & other.high_);
-};
-
-
-/**
- * Returns the bitwise-OR of this Long and the given one.
- * @param {Long} other The Long with which to OR.
- * @return {!Long} The bitwise-OR of this and the other.
- */
-Long.prototype.or = function(other) {
-    return Long.fromBits(this.low_ | other.low_,
-        this.high_ | other.high_);
-};
-
-
-/**
- * Returns the bitwise-XOR of this Long and the given one.
- * @param {Long} other The Long with which to XOR.
- * @return {!Long} The bitwise-XOR of this and the other.
- */
-Long.prototype.xor = function(other) {
-    return Long.fromBits(this.low_ ^ other.low_,
-        this.high_ ^ other.high_);
-};
-
-
-/**
- * Returns this Long with bits shifted to the left by the given amount.
- * @param {number} numBits The number of bits by which to shift.
- * @return {!Long} This shifted to the left by the given amount.
- */
+// assume that numBits < 32
 Long.prototype.shiftLeft = function(numBits) {
-    numBits &= 63;
-    if (numBits == 0) {
-        return this;
-    } else {
-        var low = this.low_;
-        if (numBits < 32) {
-            var high = this.high_;
-            return Long.fromBits(
-                low << numBits,
-                (high << numBits) | (low >>> (32 - numBits)));
-        } else {
-            return Long.fromBits(0, low << (numBits - 32));
-        }
-    }
+    return Long.fromBits(
+        this.low_ << numBits,
+        (this.high_ << numBits) | (this.low_ >>> (32 - numBits)));
 };
 
-
-/**
- * Returns this Long with bits shifted to the right by the given amount.
- * @param {number} numBits The number of bits by which to shift.
- * @return {!Long} This shifted to the right by the given amount.
- */
+// assume that numBits < 32
 Long.prototype.shiftRight = function(numBits) {
-    numBits &= 63;
-    if (numBits == 0) {
-        return this;
-    } else {
-        var high = this.high_;
-        if (numBits < 32) {
-            var low = this.low_;
-            return Long.fromBits(
-                (low >>> numBits) | (high << (32 - numBits)),
-                high >> numBits);
-        } else {
-            return Long.fromBits(
-                high >> (numBits - 32),
-                high >= 0 ? 0 : -1);
-        }
-    }
-};
-
-
-/**
- * Returns this Long with bits shifted to the right by the given amount, with
- * the new top bits matching the current sign bit.
- * @param {number} numBits The number of bits by which to shift.
- * @return {!Long} This shifted to the right by the given amount, with
- *     zeros placed into the new leading bits.
- */
-Long.prototype.shiftRightUnsigned = function(numBits) {
-    numBits &= 63;
-    if (numBits == 0) {
-        return this;
-    } else {
-        var high = this.high_;
-        if (numBits < 32) {
-            var low = this.low_;
-            return Long.fromBits(
-                (low >>> numBits) | (high << (32 - numBits)),
-                high >>> numBits);
-        } else if (numBits == 32) {
-            return Long.fromBits(high, 0);
-        } else {
-            return Long.fromBits(high >>> (numBits - 32), 0);
-        }
-    }
+    return Long.fromBits(
+        (this.low_ >>> numBits) | (this.high_ << (32 - numBits)),
+        this.high_ >> numBits);
 };
 
 
 // jssha256 version 0.1  -  Copyright 2006 B. Poettering (GNU GPL)
 // http://point-at-infinity.org/jssha256/
-
- /*
- * This is a JavaScript implementation of the SHA256 secure hash function
- * and the HMAC-SHA256 message authentication code (MAC).
- *
- * The routines' well-functioning has been verified with the test vectors 
- * given in FIPS-180-2, Appendix B and IETF RFC 4231. The HMAC algorithm 
- * conforms to IETF RFC 2104. 
- *
- * The following code example computes the hash value of the string "abc".
- *
- *    SHA256_init();
- *    SHA256_write("abc");
- *    digest = SHA256_finalize();  
- *    digest_hex = array_to_hex_string(digest);
- * 
- * Get the same result by calling the shortcut function SHA256_hash:
- * 
- *    digest_hex = SHA256_hash("abc");
- * 
- * In the following example the calculation of the HMAC of the string "abc" 
- * using the key "secret key" is shown:
- * 
- *    HMAC_SHA256_init("secret key");
- *    HMAC_SHA256_write("abc");
- *    mac = HMAC_SHA256_finalize();
- *    mac_hex = array_to_hex_string(mac);
- *
- * Again, the same can be done more conveniently:
- * 
- *    mac_hex = HMAC_SHA256_MAC("secret key", "abc");
- *
- * Note that the internal state of the hash function is held in global
- * variables. Therefore one hash value calculation has to be completed 
- * before the next is begun. The same applies the the HMAC routines.
- *
- * Report bugs to: jssha256 AT point-at-infinity.org
- *
- */
 
 /******************************************************************************/
 
@@ -855,7 +129,7 @@ function array_to_hex_string(ary) {
 
 /* The following are the SHA256 routines */
 
-/* 
+/*
  SHA256_init: initialize the internal state of the hash function. Call this
  function before calling the SHA256_write function.
  */
@@ -931,7 +205,6 @@ function SHA256_finalize() {
  */
 
 function SHA256_hash(msg) {
-    var res;
     SHA256_init();
     SHA256_write(msg);
     return SHA256_finalize();
@@ -1011,8 +284,8 @@ function SHA256_Hash_Byte_Block(H, w) {
 }
 
 // helper function
-function int10() {
-    return new Array(10);
+function int10(val) {
+    return [val || 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 }
 
 // Ported from c++ to js
@@ -1020,13 +293,13 @@ function int10() {
 KEY_SIZE = 32;
 
 /* 0 */
-ZERO = new Array(
+ZERO = [
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
-);
+];
 
 /* the prime 2^255-19 */
-PRIME = new Array(
+PRIME = [
     237, 255, 255, 255,
     255, 255, 255, 255,
     255, 255, 255, 255,
@@ -1035,10 +308,10 @@ PRIME = new Array(
     255, 255, 255, 255,
     255, 255, 255, 255,
     255, 255, 255, 127
-);
+];
 
 /* group order (a prime near 2^252+2^124) */
-ORDER = new Array(
+ORDER = [
     237, 211, 245, 92,
     26,  99,  18,  88,
     214, 156, 247, 162,
@@ -1047,10 +320,10 @@ ORDER = new Array(
     0,   0,   0,   0,
     0,   0,   0,   0,
     0,   0,   0,   16
-);
+];
 
 /* smallest multiple of the order that's >= 2^255 */
-ORDER_TIMES_8 = new Array(
+ORDER_TIMES_8 = [
     104, 159, 174, 231,
     210, 24,  147, 192,
     178, 230, 188, 23,
@@ -1059,23 +332,30 @@ ORDER_TIMES_8 = new Array(
     0,   0,   0,   0,
     0,   0,   0,   0,
     0,   0,   0,   128
-);
+];
 
 /* constants 2Gy and 1/(2Gy) */
-BASE_2Y = new Array(
+BASE_2Y = [
     39999547, 18689728, 59995525, 1648697, 57546132,
-        24010086, 19059592, 5425144, 63499247, 16420658
-);
+    24010086, 19059592, 5425144, 63499247, 16420658
+];
 
-BASE_R2Y = new Array(
+BASE_R2Y = [
     5744, 8160848, 4790893, 13779497, 35730846,
-        12541209, 49101323, 30047407, 40071253, 6226132
-);
+    12541209, 49101323, 30047407, 40071253, 6226132
+];
 
 
 P25 = 33554431;	/* 0x2000000 - 1 */
 P26 = 67108863;	/* 0x4000000 - 1 */
 
+L1 = Long.fromInt(1);
+L2 = Long.fromInt(2);
+L4 = Long.fromInt(4);
+L9 = Long.fromInt(9);
+L19 = Long.fromInt(19);
+L38 = Long.fromInt(38);
+L76 = Long.fromInt(76);
 
 function unpack(x, m)
 {
@@ -1110,18 +390,7 @@ function is_overflow(x) {
         ) || (x[9] > P25);
 }
 
-function ToInt8(x) {
-    if (typeof x !== 'number')
-        x = x.getLowBits();
-
-    var uint = x - Math.floor(x/0x100)*0x100;
-    if (uint >= 0x80)
-        return uint - 0x100;
-    else
-        return uint;
-}
-
-/* Convert from internal format to little-endian uint8_t format.  The 
+/* Convert from internal format to little-endian uint8_t format.  The
  * number must be in a reduced form which is output by the following ops:
  *     unpack, mul, sqr
  *     set --  if input in range 0 .. P25
@@ -1131,91 +400,64 @@ function pack(x, m)
     var ld = (is_overflow(x)?1:0) - ((x[9] < 0)?1:0);
     var ud = ld * -(P25+1);
     ld *= 19;
-    var t = Long.fromInt(ld).add(Long.fromInt(x[0])).add(Long.fromInt(x[1]).shiftLeft(26));
-    m[ 0] = t.getLowBits() & 0xFF;
-    m[ 1] = t.shiftRight(8).getLowBits() & 0xFF;
-    m[ 2] = t.shiftRight(16).getLowBits() & 0xFF;
-    m[ 3] = t.shiftRight(24).getLowBits() & 0xFF;
-
-    t = t.shiftRight(32).add(Long.fromInt(x[2]).shiftLeft(19));
-    m[ 4] = t.getLowBits() & 0xFF;
-    m[ 5] = t.shiftRight(8).getLowBits() & 0xFF;
-    m[ 6] = t.shiftRight(16).getLowBits() & 0xFF;
-    m[ 7] = t.shiftRight(24).getLowBits() & 0xFF
-
-    t = t.shiftRight(32).add(Long.fromInt(x[3]).shiftLeft(13));
-    m[ 8] = t.getLowBits() & 0xFF;
-    m[ 9] = t.shiftRight(8).getLowBits() & 0xFF;
-    m[10] = t.shiftRight(16).getLowBits() & 0xFF;
-    m[11] = t.shiftRight(24).getLowBits() & 0xFF;
-
-    t = t.shiftRight(32).add(Long.fromInt(x[4]).shiftLeft(6));
-    m[12] = t.getLowBits() & 0xFF;
-    m[13] = t.shiftRight(8).getLowBits() & 0xFF;
-    m[14] = t.shiftRight(16).getLowBits() & 0xFF;
-    m[15] = t.shiftRight(24).getLowBits() & 0xFF;
-
-    t = t.shiftRight(32).add(Long.fromInt(x[5])).add(Long.fromInt(x[6]).shiftLeft(25));
-    m[16] = t.getLowBits() & 0xFF;
-    m[17] = t.shiftRight(8).getLowBits() & 0xFF;
-    m[18] = t.shiftRight(16).getLowBits() & 0xFF;
-    m[19] = t.shiftRight(24).getLowBits() & 0xFF;
-
-    t = t.shiftRight(32).add(Long.fromInt(x[7]).shiftLeft(19));
-    m[20] = t.getLowBits() & 0xFF;
-    m[21] = t.shiftRight(8).getLowBits() & 0xFF;
-    m[22] = t.shiftRight(16).getLowBits() & 0xFF;
-    m[23] = t.shiftRight(24).getLowBits() & 0xFF;
-
-    t = t.shiftRight(32).add(Long.fromInt(x[8]).shiftLeft(12));
-    m[24] = t.getLowBits() & 0xFF;
-    m[25] = t.shiftRight(8).getLowBits() & 0xFF;
-    m[26] = t.shiftRight(16).getLowBits() & 0xFF;
-    m[27] = t.shiftRight(24).getLowBits() & 0xFF;
-
-    t = t.shiftRight(32).add(Long.fromInt(x[9]).add(Long.fromInt(ud)).shiftLeft(6));
-    m[28] = t.getLowBits() & 0xFF;
-    m[29] = t.shiftRight(8).getLowBits() & 0xFF;
-    m[30] = t.shiftRight(16).getLowBits() & 0xFF;
-    m[31] = t.shiftRight(24).getLowBits() & 0xFF;
+    var t = ld + x[0] + (x[1] * 0x4000000);
+    m[ 0] = t & 0xFF;
+    m[ 1] = Math.floor(t / 0x100) & 0xFF;
+    m[ 2] = Math.floor(t / 0x10000) & 0xFF;
+    m[ 3] = Math.floor(t / 0x1000000) & 0xFF;
+    t = Math.floor(t / 0x100000000) + (x[2] * 0x80000);
+    m[ 4] = t & 0xFF;
+    m[ 5] = Math.floor(t / 0x100) & 0xFF;
+    m[ 6] = Math.floor(t / 0x10000) & 0xFF;
+    m[ 7] = Math.floor(t / 0x1000000) & 0xFF;
+    t = Math.floor(t / 0x100000000) + (x[3] * 0x2000);
+    m[ 8] = t & 0xFF;
+    m[ 9] = Math.floor(t / 0x100) & 0xFF;
+    m[10] = Math.floor(t / 0x10000) & 0xFF;
+    m[11] = Math.floor(t / 0x1000000) & 0xFF;
+    t = Math.floor(t / 0x100000000) + (x[4] * 0x40);
+    m[12] = t & 0xFF;
+    m[13] = Math.floor(t / 0x100) & 0xFF;
+    m[14] = Math.floor(t / 0x10000) & 0xFF;
+    m[15] = Math.floor(t / 0x1000000) & 0xFF;
+    t = Math.floor(t / 0x100000000) + x[5] + (x[6] * 0x2000000);
+    m[16] = t & 0xFF;
+    m[17] = Math.floor(t / 0x100) & 0xFF;
+    m[18] = Math.floor(t / 0x10000) & 0xFF;
+    m[19] = Math.floor(t / 0x1000000) & 0xFF;
+    t = Math.floor(t / 0x100000000) + (x[7] * 0x80000);
+    m[20] = t & 0xFF;
+    m[21] = Math.floor(t / 0x100) & 0xFF;
+    m[22] = Math.floor(t / 0x10000) & 0xFF;
+    m[23] = Math.floor(t / 0x1000000) & 0xFF;
+    t = Math.floor(t / 0x100000000) + (x[8] * 0x1000);
+    m[24] = t & 0xFF;
+    m[25] = Math.floor(t / 0x100) & 0xFF;
+    m[26] = Math.floor(t / 0x10000) & 0xFF;
+    m[27] = Math.floor(t / 0x1000000) & 0xFF;
+    t = Math.floor(t / 0x100000000) + ((x[9] + ud) * 0x40);
+    m[28] = t & 0xFF;
+    m[29] = Math.floor(t / 0x100) & 0xFF;
+    m[30] = Math.floor(t / 0x10000) & 0xFF;
+    m[31] = Math.floor(t / 0x1000000) & 0xFF;
 }
 
-function set(o, i)
-{
-    o[0]=i;	o[1]=0;
-    o[2]=0;	o[3]=0;
-    o[4]=0;	o[5]=0;
-    o[6]=0;	o[7]=0;
-    o[8]=0;	o[9]=0;
-}
-
-function cpy(o, i)
+function cpy(d, s)
 {
     for (var j = 0; j < 10; j++)
-        o[j] = i[j];
+        d[j] = s[j];
 }
 
 function add(xy, x, y)
 {
-    xy[0] = x[0] + y[0];	xy[1] = x[1] + y[1];
-    xy[2] = x[2] + y[2];	xy[3] = x[3] + y[3];
-    xy[4] = x[4] + y[4];	xy[5] = x[5] + y[5];
-    xy[6] = x[6] + y[6];	xy[7] = x[7] + y[7];
-    xy[8] = x[8] + y[8];	xy[9] = x[9] + y[9];
+    for (var j = 0; j < 10; j++)
+        xy[j] = x[j] + y[j];
 }
 
 function sub(xy, x, y)
 {
-    xy[0] = x[0] - y[0];	xy[1] = x[1] - y[1];
-    xy[2] = x[2] - y[2];	xy[3] = x[3] - y[3];
-    xy[4] = x[4] - y[4];	xy[5] = x[5] - y[5];
-    xy[6] = x[6] - y[6];	xy[7] = x[7] - y[7];
-    xy[8] = x[8] - y[8];	xy[9] = x[9] - y[9];
-}
-
-function mul32_to64(/*int32_t */a, /*int32_t */b)
-{
-    return Long.fromInt(a).multiply(Long.fromInt(b));
+    for (var j = 0; j < 10; j++)
+        xy[j] = x[j] - y[j];
 }
 
 /********************* radix 2^8 math *********************/
@@ -1311,7 +553,7 @@ function egcd32(x, y, a, b)
     an = numsize(a, 32);
     if (an==0)
         return y;	/* division by zero */
-    /*uint8_t* */temp= new Array(32);
+    temp= new Array(32);
     while (true)
     {
         qn = bn - an + 1;
@@ -1336,80 +578,80 @@ function egcd32(x, y, a, b)
  * to the same buffer. */
 function mul_small(xy, x, y)
 {
-    var t = mul32_to64(x[8], y);
-    xy[8] = t.getLowBits() & P26;
-    t = t.shiftRight(26).add(mul32_to64(x[9],y));
-    xy[9] = t & P25;
-    t = Long.fromInt(19).multiply(t.shiftRight(25)).add(mul32_to64(x[0],y));
-    xy[0] = t & P26;
-    t = t.shiftRight(26).add(mul32_to64(x[1],y));
-    xy[1] = t & P25;
-    t = t.shiftRight(25).add(mul32_to64(x[2],y));
-    xy[2] = t & P26;
-    t = t.shiftRight(26).add(mul32_to64(x[3],y));
-    xy[3] = t & P25;
-    t = t.shiftRight(25).add(mul32_to64(x[4],y));
-    xy[4] = t & P26;
-    t = t.shiftRight(26).add(mul32_to64(x[5],y));
-    xy[5] = t & P25;
-    t = t.shiftRight(25).add(mul32_to64(x[6],y));
-    xy[6] = t & P26;
-    t = t.shiftRight(26).add(mul32_to64(x[7],y));
-    xy[7] = t & P25;
-    t = t.shiftRight(25).add(Long.fromInt(xy[8]));
+    var t = x[8]*y;
     xy[8] = t & P26;
-    xy[9] += t.shiftRight(26).getLowBits();
+    t = Math.floor(t / 0x4000000) + x[9]*y;
+    xy[9] = t & P25;
+    t = 19*Math.floor(t / 0x2000000) + x[0]*y;
+    xy[0] = t & P26;
+    t = Math.floor(t / 0x4000000) + x[1]*y;
+    xy[1] = t & P25;
+    t = Math.floor(t / 0x2000000) + x[2]*y;
+    xy[2] = t & P26;
+    t = Math.floor(t / 0x4000000) + x[3]*y;
+    xy[3] = t & P25;
+    t = Math.floor(t / 0x2000000) + x[4]*y;
+    xy[4] = t & P26;
+    t = Math.floor(t / 0x4000000) + x[5]*y;
+    xy[5] = t & P25;
+    t = Math.floor(t / 0x2000000) + x[6]*y;
+    xy[6] = t & P26;
+    t = Math.floor(t / 0x4000000) + x[7]*y;
+    xy[7] = t & P25;
+    t = Math.floor(t / 0x2000000) + xy[8];
+    xy[8] = t & P26;
+    xy[9] += Math.floor(t / 0x4000000);
 }
 
 function mul(dest, x, y)
 {
-    var x_0=x[0],x_1=x[1],x_2=x[2],x_3=x[3],x_4=x[4],
-    x_5=x[5],x_6=x[6],x_7=x[7],x_8=x[8],x_9=x[9];
-    var y_0=y[0],y_1=y[1],y_2=y[2],y_3=y[3],y_4=y[4],
-    y_5=y[5],y_6=y[6],y_7=y[7],y_8=y[8],y_9=y[9];
+    var x_0 = Long.fromInt(x[0]), x_1 = Long.fromInt(x[1]), x_2 = Long.fromInt(x[2]), x_3 = Long.fromInt(x[3]), x_4 = Long.fromInt(x[4]),
+        x_5 = Long.fromInt(x[5]), x_6 = Long.fromInt(x[6]), x_7 = Long.fromInt(x[7]), x_8 = Long.fromInt(x[8]), x_9 = Long.fromInt(x[9]);
+    var y_0 = Long.fromInt(y[0]), y_1 = Long.fromInt(y[1]), y_2 = Long.fromInt(y[2]), y_3 = Long.fromInt(y[3]), y_4 = Long.fromInt(y[4]),
+        y_5 = Long.fromInt(y[5]), y_6 = Long.fromInt(y[6]), y_7 = Long.fromInt(y[7]), y_8 = Long.fromInt(y[8]), y_9 = Long.fromInt(y[9]);
 
-    var t = mul32_to64(x_0, y_8).add(mul32_to64(x_2, y_6)).add(mul32_to64(x_4, y_4)).add(mul32_to64(x_6, y_2)).add(mul32_to64(x_8, y_0));
-    t = t.add(Long.fromInt(2).multiply(mul32_to64(x_1, y_7).add(mul32_to64(x_3, y_5)).add(mul32_to64(x_5, y_3)).add(mul32_to64(x_7, y_1))));
-    t = t.add(Long.fromInt(38).multiply(mul32_to64(x_9, y_9)));
+    var t = x_0.multiply(y_8).add(x_2.multiply(y_6)).add(x_4.multiply(y_4)).add(x_6.multiply(y_2)).add(x_8.multiply(y_0));
+    t = t.add(L2.multiply(x_1.multiply(y_7).add(x_3.multiply(y_5)).add(x_5.multiply(y_3)).add(x_7.multiply(y_1))));
+    t = t.add(L38.multiply(x_9.multiply(y_9)));
     dest[8] = t.getLowBits() & P26;
-    t = t.shiftRight(26).add(mul32_to64(x_0, y_9)).add(mul32_to64(x_1, y_8)).add( mul32_to64(x_2, y_7)).
-        add(mul32_to64(x_3, y_6)).add(mul32_to64(x_4, y_5)).add(mul32_to64(x_5, y_4)).
-        add(mul32_to64(x_6, y_3)).add(mul32_to64(x_7, y_2)).add(mul32_to64(x_8, y_1)).
-        add(mul32_to64(x_9, y_0));
+    t = t.shiftRight(26).add(x_0.multiply(y_9)).add(x_1.multiply(y_8)).add( x_2.multiply(y_7)).
+        add(x_3.multiply(y_6)).add(x_4.multiply(y_5)).add(x_5.multiply(y_4)).
+        add(x_6.multiply(y_3)).add(x_7.multiply(y_2)).add(x_8.multiply(y_1)).
+        add(x_9.multiply(y_0));
     dest[9] = t.getLowBits() & P25;
-    t = mul32_to64(x_0, y_0).
-        add(Long.fromInt(19).multiply(t.shiftRight(25).add(mul32_to64(x_2, y_8)).add(mul32_to64(x_4, y_6)).add(mul32_to64(x_6, y_4)).add(mul32_to64(x_8, y_2)))).
-        add(Long.fromInt(38).multiply(mul32_to64(x_1, y_9).add(mul32_to64(x_3, y_7)).add(mul32_to64(x_5, y_5)).add(mul32_to64(x_7, y_3)).add(mul32_to64(x_9, y_1))));
+    t = x_0.multiply(y_0).
+        add(L19.multiply(t.shiftRight(25).add(x_2.multiply(y_8)).add(x_4.multiply(y_6)).add(x_6.multiply(y_4)).add(x_8.multiply(y_2)))).
+        add(L38.multiply(x_1.multiply(y_9).add(x_3.multiply(y_7)).add(x_5.multiply(y_5)).add(x_7.multiply(y_3)).add(x_9.multiply(y_1))));
     dest[0] = t.getLowBits() & P26;
-    t = t.shiftRight(26).add(mul32_to64(x_0, y_1)).add(mul32_to64(x_1, y_0)).
-        add(Long.fromInt(19).multiply(mul32_to64(x_2, y_9).add(mul32_to64(x_3, y_8)).add(mul32_to64(x_4, y_7)).add(mul32_to64(x_5, y_6)).add(mul32_to64(x_6, y_5)).
-            add(mul32_to64(x_7, y_4)).add(mul32_to64(x_8, y_3)).add(mul32_to64(x_9, y_2))));
+    t = t.shiftRight(26).add(x_0.multiply(y_1)).add(x_1.multiply(y_0)).
+        add(L19.multiply(x_2.multiply(y_9).add(x_3.multiply(y_8)).add(x_4.multiply(y_7)).add(x_5.multiply(y_6)).add(x_6.multiply(y_5)).
+            add(x_7.multiply(y_4)).add(x_8.multiply(y_3)).add(x_9.multiply(y_2))));
     dest[1] = t.getLowBits() & P25;
-    t = t.shiftRight(25).add(mul32_to64(x_0, y_2)).add(mul32_to64(x_2, y_0)).
-        add(Long.fromInt(19).multiply(mul32_to64(x_4, y_8).add(mul32_to64(x_6, y_6)).add(mul32_to64(x_8, y_4)))).
-        add(Long.fromInt(2).multiply(mul32_to64(x_1, y_1))).
-        add(Long.fromInt(38).multiply(mul32_to64(x_3, y_9).add(mul32_to64(x_5, y_7)).add(mul32_to64(x_7, y_5)).add(mul32_to64(x_9, y_3))));
+    t = t.shiftRight(25).add(x_0.multiply(y_2)).add(x_2.multiply(y_0)).
+        add(L19.multiply(x_4.multiply(y_8).add(x_6.multiply(y_6)).add(x_8.multiply(y_4)))).
+        add(L2.multiply(x_1.multiply(y_1))).
+        add(L38.multiply(x_3.multiply(y_9).add(x_5.multiply(y_7)).add(x_7.multiply(y_5)).add(x_9.multiply(y_3))));
     dest[2] = t.getLowBits() & P26;
-    t = t.shiftRight(26).add(mul32_to64(x_0, y_3)).add(mul32_to64(x_1, y_2)).add(mul32_to64(x_2, y_1)).add(mul32_to64(x_3, y_0)).
-        add(Long.fromInt(19).multiply(mul32_to64(x_4, y_9).add(mul32_to64(x_5, y_8)).add(mul32_to64(x_6, y_7)).add(mul32_to64(x_7, y_6)).add(mul32_to64(x_8, y_5)).add(mul32_to64(x_9, y_4))));
+    t = t.shiftRight(26).add(x_0.multiply(y_3)).add(x_1.multiply(y_2)).add(x_2.multiply(y_1)).add(x_3.multiply(y_0)).
+        add(L19.multiply(x_4.multiply(y_9).add(x_5.multiply(y_8)).add(x_6.multiply(y_7)).add(x_7.multiply(y_6)).add(x_8.multiply(y_5)).add(x_9.multiply(y_4))));
     dest[3] = t.getLowBits() & P25;
-    t = t.shiftRight(25).add(mul32_to64(x_0, y_4)).add(mul32_to64(x_2, y_2)).add(mul32_to64(x_4, y_0)).
-        add(Long.fromInt(19).multiply(mul32_to64(x_6, y_8).add(mul32_to64(x_8, y_6)))).
-        add(Long.fromInt(2).multiply(mul32_to64(x_1, y_3).add(mul32_to64(x_3, y_1)))).
-        add(Long.fromInt(38).multiply(mul32_to64(x_5, y_9).add(mul32_to64(x_7, y_7)).add(mul32_to64(x_9, y_5))));
+    t = t.shiftRight(25).add(x_0.multiply(y_4)).add(x_2.multiply(y_2)).add(x_4.multiply(y_0)).
+        add(L19.multiply(x_6.multiply(y_8).add(x_8.multiply(y_6)))).
+        add(L2.multiply(x_1.multiply(y_3).add(x_3.multiply(y_1)))).
+        add(L38.multiply(x_5.multiply(y_9).add(x_7.multiply(y_7)).add(x_9.multiply(y_5))));
     dest[4] = t.getLowBits() & P26;
-    t = t.shiftRight(26).add(mul32_to64(x_0, y_5)).add(mul32_to64(x_1, y_4)).add(mul32_to64(x_2, y_3)).
-        add(mul32_to64(x_3, y_2)).add(mul32_to64(x_4, y_1)).add(mul32_to64(x_5, y_0)).
-        add(Long.fromInt(19).multiply(mul32_to64(x_6, y_9).add(mul32_to64(x_7, y_8)).add(mul32_to64(x_8, y_7)).add(mul32_to64(x_9, y_6))));
+    t = t.shiftRight(26).add(x_0.multiply(y_5)).add(x_1.multiply(y_4)).add(x_2.multiply(y_3)).
+        add(x_3.multiply(y_2)).add(x_4.multiply(y_1)).add(x_5.multiply(y_0)).
+        add(L19.multiply(x_6.multiply(y_9).add(x_7.multiply(y_8)).add(x_8.multiply(y_7)).add(x_9.multiply(y_6))));
     dest[5] = t.getLowBits() & P25;
-    t = t.shiftRight(25).add(mul32_to64(x_0, y_6)).add(mul32_to64(x_2, y_4)).add(mul32_to64(x_4, y_2)).add(mul32_to64(x_6, y_0)).
-        add(Long.fromInt(19).multiply(mul32_to64(x_8, y_8))).
-        add(Long.fromInt(2).multiply(mul32_to64(x_1, y_5).add(mul32_to64(x_3, y_3)).add(mul32_to64(x_5, y_1)))).
-        add(Long.fromInt(38).multiply(mul32_to64(x_7, y_9).add(mul32_to64(x_9, y_7))));
+    t = t.shiftRight(25).add(x_0.multiply(y_6)).add(x_2.multiply(y_4)).add(x_4.multiply(y_2)).add(x_6.multiply(y_0)).
+        add(L19.multiply(x_8.multiply(y_8))).
+        add(L2.multiply(x_1.multiply(y_5).add(x_3.multiply(y_3)).add(x_5.multiply(y_1)))).
+        add(L38.multiply(x_7.multiply(y_9).add(x_9.multiply(y_7))));
     dest[6] = t.getLowBits() & P26;
-    t = t.shiftRight(26).add(mul32_to64(x_0, y_7)).add(mul32_to64(x_1, y_6)).add(mul32_to64(x_2, y_5)).add(mul32_to64(x_3, y_4)).
-        add(mul32_to64(x_4, y_3)).add(mul32_to64(x_5, y_2)).add(mul32_to64(x_6, y_1)).add(mul32_to64(x_7, y_0)).
-        add(Long.fromInt(19).multiply(mul32_to64(x_8, y_9).add(mul32_to64(x_9, y_8))));
+    t = t.shiftRight(26).add(x_0.multiply(y_7)).add(x_1.multiply(y_6)).add(x_2.multiply(y_5)).add(x_3.multiply(y_4)).
+        add(x_4.multiply(y_3)).add(x_5.multiply(y_2)).add(x_6.multiply(y_1)).add(x_7.multiply(y_0)).
+        add(L19.multiply(x_8.multiply(y_9).add(x_9.multiply(y_8))));
     dest[7] = t.getLowBits() & P25;
     t = t.shiftRight(25).add(Long.fromInt(dest[8]));
     dest[8] = t.getLowBits() & P26;
@@ -1418,52 +660,51 @@ function mul(dest, x, y)
 
 function sqr(y, x)
 {
+    var x_0 = Long.fromInt(x[0]), x_1 = Long.fromInt(x[1]), x_2 = Long.fromInt(x[2]), x_3 = Long.fromInt(x[3]), x_4 = Long.fromInt(x[4]),
+        x_5 = Long.fromInt(x[5]), x_6 = Long.fromInt(x[6]), x_7 = Long.fromInt(x[7]), x_8 = Long.fromInt(x[8]), x_9 = Long.fromInt(x[9]);
 
-    var x_0=x[0],x_1=x[1],x_2=x[2],x_3=x[3],x_4=x[4],
-    x_5=x[5],x_6=x[6],x_7=x[7],x_8=x[8],x_9=x[9];
-
-    var t = mul32_to64(x_4, x_4).
-        add(Long.fromInt(2).multiply(mul32_to64(x_0, x_8).add(mul32_to64(x_2, x_6)))).
-        add(Long.fromInt(38).multiply(mul32_to64(x_9, x_9))).add(Long.fromInt(4).multiply(mul32_to64(x_1, x_7).add(mul32_to64(x_3, x_5))));
+    var t = x_4.multiply(x_4).
+        add(L2.multiply(x_0.multiply(x_8).add(x_2.multiply(x_6)))).
+        add(L38.multiply(x_9.multiply(x_9))).add(L4.multiply(x_1.multiply(x_7).add(x_3.multiply(x_5))));
     y[8] = t.getLowBits() & P26;
-    t = t.shiftRight(26).add(Long.fromInt(2).multiply(mul32_to64(x_0, x_9).add(mul32_to64(x_1, x_8)).add(mul32_to64(x_2, x_7)).
-        add(mul32_to64(x_3, x_6)).add(mul32_to64(x_4, x_5))));
+    t = t.shiftRight(26).add(L2.multiply(x_0.multiply(x_9).add(x_1.multiply(x_8)).add(x_2.multiply(x_7)).
+        add(x_3.multiply(x_6)).add(x_4.multiply(x_5))));
     y[9] = t.getLowBits() & P25;
-    t = Long.fromInt(19).multiply(t.shiftRight(25)).add(mul32_to64(x_0, x_0)).
-        add(Long.fromInt(38).multiply(mul32_to64(x_2, x_8).add(mul32_to64(x_4, x_6).add(mul32_to64(x_5, x_5))))).
-        add(Long.fromInt(76).multiply(mul32_to64(x_1, x_9).add(mul32_to64(x_3, x_7))));
+    t = L19.multiply(t.shiftRight(25)).add(x_0.multiply(x_0)).
+        add(L38.multiply(x_2.multiply(x_8).add(x_4.multiply(x_6).add(x_5.multiply(x_5))))).
+        add(L76.multiply(x_1.multiply(x_9).add(x_3.multiply(x_7))));
     y[0] = t.getLowBits() & P26;
-    t = t.shiftRight(26).add(Long.fromInt(2).multiply(mul32_to64(x_0, x_1)).
-        add(Long.fromInt(38).multiply(mul32_to64(x_2, x_9).add(mul32_to64(x_3, x_8)).add(mul32_to64(x_4, x_7)).add(mul32_to64(x_5, x_6)))));
+    t = t.shiftRight(26).add(L2.multiply(x_0.multiply(x_1)).
+        add(L38.multiply(x_2.multiply(x_9).add(x_3.multiply(x_8)).add(x_4.multiply(x_7)).add(x_5.multiply(x_6)))));
     y[1] = t.getLowBits() & P25;
-    t = t.shiftRight(25).add(Long.fromInt(19).multiply(mul32_to64(x_6, x_6))).
-        add(Long.fromInt(2).multiply(mul32_to64(x_0, x_2).add(mul32_to64(x_1, x_1)))).
-        add(Long.fromInt(38).multiply(mul32_to64(x_4, x_8))).
-        add(Long.fromInt(76).multiply(mul32_to64(x_3, x_9).add(mul32_to64(x_5, x_7))));
+    t = t.shiftRight(25).add(L19.multiply(x_6.multiply(x_6))).
+        add(L2.multiply(x_0.multiply(x_2).add(x_1.multiply(x_1)))).
+        add(L38.multiply(x_4.multiply(x_8))).
+        add(L76.multiply(x_3.multiply(x_9).add(x_5.multiply(x_7))));
     y[2] = t.getLowBits() & P26;
     t = t.shiftRight(26).
-        add(Long.fromInt(2).multiply(mul32_to64(x_0, x_3).add(mul32_to64(x_1, x_2)))).
-        add(Long.fromInt(38).multiply(mul32_to64(x_4, x_9).add(mul32_to64(x_5, x_8)).add(mul32_to64(x_6, x_7))));
+        add(L2.multiply(x_0.multiply(x_3).add(x_1.multiply(x_2)))).
+        add(L38.multiply(x_4.multiply(x_9).add(x_5.multiply(x_8)).add(x_6.multiply(x_7))));
     y[3] = t.getLowBits() & P25;
-    t = t.shiftRight(25).add(mul32_to64(x_2, x_2)).
-        add(Long.fromInt(2).multiply(mul32_to64(x_0, x_4))).
-        add(Long.fromInt(38).multiply(mul32_to64(x_6, x_8).add(mul32_to64(x_7, x_7)))).
-        add(Long.fromInt(4).multiply(mul32_to64(x_1, x_3))).
-        add(Long.fromInt(76).multiply(mul32_to64(x_5, x_9)));
+    t = t.shiftRight(25).add(x_2.multiply(x_2)).
+        add(L2.multiply(x_0.multiply(x_4))).
+        add(L38.multiply(x_6.multiply(x_8).add(x_7.multiply(x_7)))).
+        add(L4.multiply(x_1.multiply(x_3))).
+        add(L76.multiply(x_5.multiply(x_9)));
     y[4] = t.getLowBits() & P26;
     t = t.shiftRight(26).
-        add(Long.fromInt(2).multiply(mul32_to64(x_0, x_5).add(mul32_to64(x_1, x_4)).add(mul32_to64(x_2, x_3)))).
-        add(Long.fromInt(38).multiply(mul32_to64(x_6, x_9).add(mul32_to64(x_7, x_8))));
+        add(L2.multiply(x_0.multiply(x_5).add(x_1.multiply(x_4)).add(x_2.multiply(x_3)))).
+        add(L38.multiply(x_6.multiply(x_9).add(x_7.multiply(x_8))));
     y[5] = t.getLowBits() & P25;
     t = t.shiftRight(25).
-        add(Long.fromInt(19).multiply(mul32_to64(x_8, x_8))).
-        add(Long.fromInt(2).multiply(mul32_to64(x_0, x_6).add(mul32_to64(x_2, x_4)).add(mul32_to64(x_3, x_3)))).
-        add(Long.fromInt(4).multiply(mul32_to64(x_1, x_5))).
-        add(Long.fromInt(76).multiply(mul32_to64(x_7, x_9)));
+        add(L19.multiply(x_8.multiply(x_8))).
+        add(L2.multiply(x_0.multiply(x_6).add(x_2.multiply(x_4)).add(x_3.multiply(x_3)))).
+        add(L4.multiply(x_1.multiply(x_5))).
+        add(L76.multiply(x_7.multiply(x_9)));
     y[6] = t.getLowBits() & P26;
     t = t.shiftRight(26).
-        add(Long.fromInt(2).multiply(mul32_to64(x_0, x_7).add(mul32_to64(x_1, x_6)).add(mul32_to64(x_2, x_5)).add(mul32_to64(x_3, x_4)))).
-        add(Long.fromInt(38).multiply(mul32_to64(x_8, x_9)));
+        add(L2.multiply(x_0.multiply(x_7).add(x_1.multiply(x_6)).add(x_2.multiply(x_5)).add(x_3.multiply(x_4)))).
+        add(L38.multiply(x_8.multiply(x_9)));
     y[7] = t.getLowBits() & P25;
     t = t.shiftRight(25).add(Long.fromInt(y[8]));
     y[8] = t.getLowBits() & P26;
@@ -1506,9 +747,9 @@ function recip(y, x, sqrtassist)
     } /* t4 */		/* 2^40  - 2^20	*/
     mul(t3, t4, t1);	/* 2^40  - 2^0	*/
     for (var i = 0; i < 5; i++) {
-    sqr(t1, t3);
-    sqr(t3, t1);
-} /* t3 */		/* 2^50  - 2^10	*/
+        sqr(t1, t3);
+        sqr(t3, t1);
+    } /* t3 */		/* 2^50  - 2^10	*/
     mul(t1, t3, t2);	/* 2^50  - 2^0	*/
     sqr(t2, t1);	/* 2^51  - 2^1	*/
     sqr(t3, t2);	/* 2^52  - 2^2	*/
@@ -1627,22 +868,22 @@ function curve25519_core(Px, s, k, Gx)
 {
     var dx = int10(); var t1 = int10(); var t2 = int10(); var t3 = int10(); var t4 = int10();
 
-    var x = new Array(int10(), int10());
-    var z = new Array(int10(), int10());
+    var x = [int10(), int10()];
+    var z = [int10(), int10()];
 
     /* unpack the base */
     if (Gx)
         unpack(dx, Gx);
     else
-        set(dx, 9);
+        dx = int10(9);
 
     /* 0G = point-at-infinity */
-    set(x[0], 1);
-    set(z[0], 0);
+    x[0] = int10(1);
+    z[0] = int10();
 
     /* 1G = G */
     cpy(x[1], dx);
-    set(z[1], 1);
+    z[1] = int10(1);
 
     for (var i = 32; i-- > 0; )
     {
@@ -1758,7 +999,10 @@ function curve25519_core(Px, s, k, Gx)
     for (i = 0; i < 32; i++)
         v[i] = 0;
     i = mula_small(v, x, 0, h, 32, -1);
-    mula_small(v, v, 0, ORDER, 32, Math.floor((15-ToInt8(v[31]))/16));
+    var v31 = v[31];
+    if ((v31 & 0x80) != 0)
+        v31 |= 0xFFFFFF00;
+    mula_small(v, v, 0, ORDER, 32, Math.floor((15-v31)/16));
     mula32(tmp1, v, s, 32, 1);
     divmod(tmp2, tmp1, 64, ORDER, 32);
     for (w = 0, i = 0; i < 32; i++)
@@ -1777,18 +1021,18 @@ function curve25519_verify(Y, v, h, P)
     /* Y = v abs(P) + h G  */
     var d = new Array(32);
 
-    var p = new Array(int10(), int10());
-    var s = new Array(int10(), int10());
-    var yx = new Array(int10(), int10(), int10());
-    var yz = new Array(int10(), int10(), int10());
-    var t1 = new Array(int10(), int10(), int10());
-    var t2 = new Array(int10(), int10(), int10());
+    var p = [int10(), int10()];
+    var s = [int10(), int10()];
+    var yx = [int10(), int10(), int10()];
+    var yz = [int10(), int10(), int10()];
+    var t1 = [int10(), int10(), int10()];
+    var t2 = [int10(), int10(), int10()];
 
     var vi = 0, hi = 0, di = 0, nvh=0, i, j, k;
 
     /* set p[0] to G and p[1] to P  */
 
-    set(p[0], 9);
+    p[0] = int10(9);
     unpack(p[1], P);
 
     /* set s[0] to P+G and s[1] to P-G  */
@@ -1837,12 +1081,12 @@ function curve25519_verify(Y, v, h, P)
     di = ((nvh & (di & 0x80) << 1) ^ vi) >> 8;
 
     /* initialize state */
-    set(yx[0], 1);
+    yx[0] = int10(1);
     cpy(yx[1], p[di]);
     cpy(yx[2], s[0]);
-    set(yz[0], 0);
-    set(yz[1], 1);
-    set(yz[2], 1);
+    yz[0] = int10();
+    yz[1] = int10(1);
+    yz[2] = int10(1);
 
     /* y[0] is (even)P + (even)G
      * y[1] is (even)P + (odd)G  if current d-bit is 0
@@ -1927,16 +1171,16 @@ function crypto_sign(message, secretPhrase) {
 
     var m = SHA256_hash(message);
     SHA256_init();
-    SHA256_write(m, m.length);
-    SHA256_write(s, s.length);
+    SHA256_write(m);
+    SHA256_write(s);
     var x = SHA256_finalize();
 
     var Y = new Array(32);
     curve25519_keygen(Y, null, x);
 
     SHA256_init();
-    SHA256_write(m, m.length);
-    SHA256_write(Y, Y.length);
+    SHA256_write(m);
+    SHA256_write(Y);
     var h = SHA256_finalize();
 
     var v = new Array(32);
@@ -1963,8 +1207,8 @@ function crypto_verify(signature, message, publicKey) {
 
     var m = SHA256_hash(message);
     SHA256_init();
-    SHA256_write(m, m.length);
-    SHA256_write(Y, Y.length);
+    SHA256_write(m);
+    SHA256_write(Y);
     var h2 = SHA256_finalize();
 
     // compare results
