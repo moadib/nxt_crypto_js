@@ -85,6 +85,28 @@ Long.prototype.multiply = function(other) {
     return Long.fromBits((c16 << 16) | c00, (c48 << 16) | c32);
 };
 
+// multiple by small number (16bit)
+Long.prototype.multiplySmall = function(s) {
+    var a48 = this.high_ >>> 16;
+    var a32 = this.high_ & 0xFFFF;
+    var a16 = this.low_ >>> 16;
+    var a00 = this.low_ & 0xFFFF;
+
+    var c48 = 0, c32 = 0, c16 = 0, c00 = 0;
+    c00 += a00 * s;
+    c16 += c00 >>> 16;
+    c00 &= 0xFFFF;
+    c16 += a16 * s;
+    c32 += c16 >>> 16;
+    c16 &= 0xFFFF;
+    c32 += a32 * s;
+    c48 += c32 >>> 16;
+    c32 &= 0xFFFF;
+    c48 += a48 * s;
+    c48 &= 0xFFFF;
+    return Long.fromBits((c16 << 16) | c00, (c48 << 16) | c32);
+};
+
 // assume that numBits < 32
 Long.prototype.shiftLeft = function(numBits) {
     return Long.fromBits(
@@ -345,17 +367,8 @@ BASE_R2Y = [
     12541209, 49101323, 30047407, 40071253, 6226132
 ];
 
-
 P25 = 33554431;	/* 0x2000000 - 1 */
 P26 = 67108863;	/* 0x4000000 - 1 */
-
-L1 = Long.fromInt(1);
-L2 = Long.fromInt(2);
-L4 = Long.fromInt(4);
-L9 = Long.fromInt(9);
-L19 = Long.fromInt(19);
-L38 = Long.fromInt(38);
-L76 = Long.fromInt(76);
 
 function unpack(x, m)
 {
@@ -611,8 +624,8 @@ function mul(dest, x, y)
         y_5 = Long.fromInt(y[5]), y_6 = Long.fromInt(y[6]), y_7 = Long.fromInt(y[7]), y_8 = Long.fromInt(y[8]), y_9 = Long.fromInt(y[9]);
 
     var t = x_0.multiply(y_8).add(x_2.multiply(y_6)).add(x_4.multiply(y_4)).add(x_6.multiply(y_2)).add(x_8.multiply(y_0));
-    t = t.add(L2.multiply(x_1.multiply(y_7).add(x_3.multiply(y_5)).add(x_5.multiply(y_3)).add(x_7.multiply(y_1))));
-    t = t.add(L38.multiply(x_9.multiply(y_9)));
+    t = t.add(x_1.multiply(y_7).add(x_3.multiply(y_5)).add(x_5.multiply(y_3)).add(x_7.multiply(y_1)).multiplySmall(2));
+    t = t.add(x_9.multiply(y_9).multiplySmall(38));
     dest[8] = t.getLowBits() & P26;
     t = t.shiftRight(26).add(x_0.multiply(y_9)).add(x_1.multiply(y_8)).add( x_2.multiply(y_7)).
         add(x_3.multiply(y_6)).add(x_4.multiply(y_5)).add(x_5.multiply(y_4)).
@@ -620,38 +633,38 @@ function mul(dest, x, y)
         add(x_9.multiply(y_0));
     dest[9] = t.getLowBits() & P25;
     t = x_0.multiply(y_0).
-        add(L19.multiply(t.shiftRight(25).add(x_2.multiply(y_8)).add(x_4.multiply(y_6)).add(x_6.multiply(y_4)).add(x_8.multiply(y_2)))).
-        add(L38.multiply(x_1.multiply(y_9).add(x_3.multiply(y_7)).add(x_5.multiply(y_5)).add(x_7.multiply(y_3)).add(x_9.multiply(y_1))));
+        add(t.shiftRight(25).add(x_2.multiply(y_8)).add(x_4.multiply(y_6)).add(x_6.multiply(y_4)).add(x_8.multiply(y_2)).multiplySmall(19)).
+        add(x_1.multiply(y_9).add(x_3.multiply(y_7)).add(x_5.multiply(y_5)).add(x_7.multiply(y_3)).add(x_9.multiply(y_1)).multiplySmall(38));
     dest[0] = t.getLowBits() & P26;
     t = t.shiftRight(26).add(x_0.multiply(y_1)).add(x_1.multiply(y_0)).
-        add(L19.multiply(x_2.multiply(y_9).add(x_3.multiply(y_8)).add(x_4.multiply(y_7)).add(x_5.multiply(y_6)).add(x_6.multiply(y_5)).
-            add(x_7.multiply(y_4)).add(x_8.multiply(y_3)).add(x_9.multiply(y_2))));
+        add(x_2.multiply(y_9).add(x_3.multiply(y_8)).add(x_4.multiply(y_7)).add(x_5.multiply(y_6)).add(x_6.multiply(y_5)).
+            add(x_7.multiply(y_4)).add(x_8.multiply(y_3)).add(x_9.multiply(y_2)).multiplySmall(19));
     dest[1] = t.getLowBits() & P25;
     t = t.shiftRight(25).add(x_0.multiply(y_2)).add(x_2.multiply(y_0)).
-        add(L19.multiply(x_4.multiply(y_8).add(x_6.multiply(y_6)).add(x_8.multiply(y_4)))).
-        add(L2.multiply(x_1.multiply(y_1))).
-        add(L38.multiply(x_3.multiply(y_9).add(x_5.multiply(y_7)).add(x_7.multiply(y_5)).add(x_9.multiply(y_3))));
+        add(x_4.multiply(y_8).add(x_6.multiply(y_6)).add(x_8.multiply(y_4)).multiplySmall(19)).
+        add(x_1.multiply(y_1).multiplySmall(2)).
+        add(x_3.multiply(y_9).add(x_5.multiply(y_7)).add(x_7.multiply(y_5)).add(x_9.multiply(y_3)).multiplySmall(38));
     dest[2] = t.getLowBits() & P26;
     t = t.shiftRight(26).add(x_0.multiply(y_3)).add(x_1.multiply(y_2)).add(x_2.multiply(y_1)).add(x_3.multiply(y_0)).
-        add(L19.multiply(x_4.multiply(y_9).add(x_5.multiply(y_8)).add(x_6.multiply(y_7)).add(x_7.multiply(y_6)).add(x_8.multiply(y_5)).add(x_9.multiply(y_4))));
+        add(x_4.multiply(y_9).add(x_5.multiply(y_8)).add(x_6.multiply(y_7)).add(x_7.multiply(y_6)).add(x_8.multiply(y_5)).add(x_9.multiply(y_4)).multiplySmall(19));
     dest[3] = t.getLowBits() & P25;
     t = t.shiftRight(25).add(x_0.multiply(y_4)).add(x_2.multiply(y_2)).add(x_4.multiply(y_0)).
-        add(L19.multiply(x_6.multiply(y_8).add(x_8.multiply(y_6)))).
-        add(L2.multiply(x_1.multiply(y_3).add(x_3.multiply(y_1)))).
-        add(L38.multiply(x_5.multiply(y_9).add(x_7.multiply(y_7)).add(x_9.multiply(y_5))));
+        add(x_6.multiply(y_8).add(x_8.multiply(y_6)).multiplySmall(19)).
+        add(x_1.multiply(y_3).add(x_3.multiply(y_1)).multiplySmall(2)).
+        add(x_5.multiply(y_9).add(x_7.multiply(y_7)).add(x_9.multiply(y_5)).multiplySmall(38));
     dest[4] = t.getLowBits() & P26;
     t = t.shiftRight(26).add(x_0.multiply(y_5)).add(x_1.multiply(y_4)).add(x_2.multiply(y_3)).
         add(x_3.multiply(y_2)).add(x_4.multiply(y_1)).add(x_5.multiply(y_0)).
-        add(L19.multiply(x_6.multiply(y_9).add(x_7.multiply(y_8)).add(x_8.multiply(y_7)).add(x_9.multiply(y_6))));
+        add(x_6.multiply(y_9).add(x_7.multiply(y_8)).add(x_8.multiply(y_7)).add(x_9.multiply(y_6)).multiplySmall(19));
     dest[5] = t.getLowBits() & P25;
     t = t.shiftRight(25).add(x_0.multiply(y_6)).add(x_2.multiply(y_4)).add(x_4.multiply(y_2)).add(x_6.multiply(y_0)).
-        add(L19.multiply(x_8.multiply(y_8))).
-        add(L2.multiply(x_1.multiply(y_5).add(x_3.multiply(y_3)).add(x_5.multiply(y_1)))).
-        add(L38.multiply(x_7.multiply(y_9).add(x_9.multiply(y_7))));
+        add(x_8.multiply(y_8).multiplySmall(19)).
+        add(x_1.multiply(y_5).add(x_3.multiply(y_3)).add(x_5.multiply(y_1)).multiplySmall(2)).
+        add(x_7.multiply(y_9).add(x_9.multiply(y_7)).multiplySmall(38));
     dest[6] = t.getLowBits() & P26;
     t = t.shiftRight(26).add(x_0.multiply(y_7)).add(x_1.multiply(y_6)).add(x_2.multiply(y_5)).add(x_3.multiply(y_4)).
         add(x_4.multiply(y_3)).add(x_5.multiply(y_2)).add(x_6.multiply(y_1)).add(x_7.multiply(y_0)).
-        add(L19.multiply(x_8.multiply(y_9).add(x_9.multiply(y_8))));
+        add(x_8.multiply(y_9).add(x_9.multiply(y_8)).multiplySmall(19));
     dest[7] = t.getLowBits() & P25;
     t = t.shiftRight(25).add(Long.fromInt(dest[8]));
     dest[8] = t.getLowBits() & P26;
@@ -664,47 +677,47 @@ function sqr(y, x)
         x_5 = Long.fromInt(x[5]), x_6 = Long.fromInt(x[6]), x_7 = Long.fromInt(x[7]), x_8 = Long.fromInt(x[8]), x_9 = Long.fromInt(x[9]);
 
     var t = x_4.multiply(x_4).
-        add(L2.multiply(x_0.multiply(x_8).add(x_2.multiply(x_6)))).
-        add(L38.multiply(x_9.multiply(x_9))).add(L4.multiply(x_1.multiply(x_7).add(x_3.multiply(x_5))));
+        add(x_0.multiply(x_8).add(x_2.multiply(x_6)).multiplySmall(2)).
+        add(x_9.multiply(x_9).multiplySmall(38)).add(x_1.multiply(x_7).add(x_3.multiply(x_5)).multiplySmall(4));
     y[8] = t.getLowBits() & P26;
-    t = t.shiftRight(26).add(L2.multiply(x_0.multiply(x_9).add(x_1.multiply(x_8)).add(x_2.multiply(x_7)).
-        add(x_3.multiply(x_6)).add(x_4.multiply(x_5))));
+    t = t.shiftRight(26).add(x_0.multiply(x_9).add(x_1.multiply(x_8)).add(x_2.multiply(x_7)).
+        add(x_3.multiply(x_6)).add(x_4.multiply(x_5)).multiplySmall(2));
     y[9] = t.getLowBits() & P25;
-    t = L19.multiply(t.shiftRight(25)).add(x_0.multiply(x_0)).
-        add(L38.multiply(x_2.multiply(x_8).add(x_4.multiply(x_6).add(x_5.multiply(x_5))))).
-        add(L76.multiply(x_1.multiply(x_9).add(x_3.multiply(x_7))));
+    t = t.shiftRight(25).multiplySmall(19).add(x_0.multiply(x_0)).
+        add(x_2.multiply(x_8).add(x_4.multiply(x_6).add(x_5.multiply(x_5))).multiplySmall(38)).
+        add(x_1.multiply(x_9).add(x_3.multiply(x_7)).multiplySmall(76));
     y[0] = t.getLowBits() & P26;
-    t = t.shiftRight(26).add(L2.multiply(x_0.multiply(x_1)).
-        add(L38.multiply(x_2.multiply(x_9).add(x_3.multiply(x_8)).add(x_4.multiply(x_7)).add(x_5.multiply(x_6)))));
+    t = t.shiftRight(26).add(x_0.multiply(x_1).multiplySmall(2).
+        add(x_2.multiply(x_9).add(x_3.multiply(x_8)).add(x_4.multiply(x_7)).add(x_5.multiply(x_6)).multiplySmall(38)));
     y[1] = t.getLowBits() & P25;
-    t = t.shiftRight(25).add(L19.multiply(x_6.multiply(x_6))).
-        add(L2.multiply(x_0.multiply(x_2).add(x_1.multiply(x_1)))).
-        add(L38.multiply(x_4.multiply(x_8))).
-        add(L76.multiply(x_3.multiply(x_9).add(x_5.multiply(x_7))));
+    t = t.shiftRight(25).add(x_6.multiply(x_6).multiplySmall(19)).
+        add(x_0.multiply(x_2).add(x_1.multiply(x_1)).multiplySmall(2)).
+        add(x_4.multiply(x_8).multiplySmall(38)).
+        add(x_3.multiply(x_9).add(x_5.multiply(x_7)).multiplySmall(76));
     y[2] = t.getLowBits() & P26;
     t = t.shiftRight(26).
-        add(L2.multiply(x_0.multiply(x_3).add(x_1.multiply(x_2)))).
-        add(L38.multiply(x_4.multiply(x_9).add(x_5.multiply(x_8)).add(x_6.multiply(x_7))));
+        add(x_0.multiply(x_3).add(x_1.multiply(x_2)).multiplySmall(2)).
+        add(x_4.multiply(x_9).add(x_5.multiply(x_8)).add(x_6.multiply(x_7)).multiplySmall(38));
     y[3] = t.getLowBits() & P25;
     t = t.shiftRight(25).add(x_2.multiply(x_2)).
-        add(L2.multiply(x_0.multiply(x_4))).
-        add(L38.multiply(x_6.multiply(x_8).add(x_7.multiply(x_7)))).
-        add(L4.multiply(x_1.multiply(x_3))).
-        add(L76.multiply(x_5.multiply(x_9)));
+        add(x_0.multiply(x_4).multiplySmall(2)).
+        add(x_6.multiply(x_8).add(x_7.multiply(x_7)).multiplySmall(38)).
+        add(x_1.multiply(x_3).multiplySmall(4)).
+        add(x_5.multiply(x_9).multiplySmall(76));
     y[4] = t.getLowBits() & P26;
     t = t.shiftRight(26).
-        add(L2.multiply(x_0.multiply(x_5).add(x_1.multiply(x_4)).add(x_2.multiply(x_3)))).
-        add(L38.multiply(x_6.multiply(x_9).add(x_7.multiply(x_8))));
+        add(x_0.multiply(x_5).add(x_1.multiply(x_4)).add(x_2.multiply(x_3)).multiplySmall(2)).
+        add(x_6.multiply(x_9).add(x_7.multiply(x_8)).multiplySmall(38));
     y[5] = t.getLowBits() & P25;
     t = t.shiftRight(25).
-        add(L19.multiply(x_8.multiply(x_8))).
-        add(L2.multiply(x_0.multiply(x_6).add(x_2.multiply(x_4)).add(x_3.multiply(x_3)))).
-        add(L4.multiply(x_1.multiply(x_5))).
-        add(L76.multiply(x_7.multiply(x_9)));
+        add(x_8.multiply(x_8).multiplySmall(19)).
+        add(x_0.multiply(x_6).add(x_2.multiply(x_4)).add(x_3.multiply(x_3)).multiplySmall(2)).
+        add(x_1.multiply(x_5).multiplySmall(4)).
+        add(x_7.multiply(x_9).multiplySmall(76));
     y[6] = t.getLowBits() & P26;
     t = t.shiftRight(26).
-        add(L2.multiply(x_0.multiply(x_7).add(x_1.multiply(x_6)).add(x_2.multiply(x_5)).add(x_3.multiply(x_4)))).
-        add(L38.multiply(x_8.multiply(x_9)));
+        add(x_0.multiply(x_7).add(x_1.multiply(x_6)).add(x_2.multiply(x_5)).add(x_3.multiply(x_4)).multiplySmall(2)).
+        add(x_8.multiply(x_9).multiplySmall(38));
     y[7] = t.getLowBits() & P25;
     t = t.shiftRight(25).add(Long.fromInt(y[8]));
     y[8] = t.getLowBits() & P26;
