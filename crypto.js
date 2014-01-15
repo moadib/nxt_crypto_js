@@ -635,10 +635,18 @@ compare = function (a ,b) {
     return 0;
 }
 
+function is_overflow(x) {
+    return (
+        ((x[0] > 0xFFFF-19)) &&
+            ((x[15]) == 0x7FFF) &&
+            ((x[1] & x[2] & x[3] & x[4] & x[5] & x[6] & x[7] & x[8] & x[9] & x[10] & x[11]  & x[12] & x[13] & x[14]) == 0xFFFF)
+        ) || (x[15] > 0x7FFF);
+}
+
 /* checks if x is "negative", requires reduced input */
 function is_negative(x)
 {
-    return x[0] & 0xFF >= 0x80;
+    return (((is_overflow(x) || (x[15] & 0x8000)) ? 1 : 0) ^ (x[0] & 1));
 }
 
 function sqrt(x, u)
