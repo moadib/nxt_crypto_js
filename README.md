@@ -4,13 +4,15 @@ nxt_crypto_js
 ##Description
 This script contains functions to sign messages and verify signatures using NRS algo.
 
-Mainly, it is port of [Curve25519][1] (New BSD License) from C++ to JavaScript
+Mainly, it is port of [Curve25519][1] (New BSD License) from C++ to JavaScript with changes to match Nxt behavior.
 
+crypto.js faster and use math from [https://github.com/kosta/confidential-publishing][2]
+
+crypto_int10.js more close to Nxt Java sources
 
 Dependencies, included in script:
 
-*   [Long][2] class from Google Closure Library (Apache license)
-*   [jssha256][3] by B. Poettering (GNU GPL)
+*  [jssha256][3] by B. Poettering (GNU GPL)
 
 
 ## License
@@ -24,5 +26,5 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 [1]: https://code.google.com/p/gvl/source/browse/crypt/curve25519.cpp
-[2]: https://code.google.com/p/closure-library/source/browse/closure/goog/math/long.js
+[2]: https://github.com/kosta/confidential-publishing/blob/master/js/curve25519/curve25519.js
 [3]: http://point-at-infinity.org/jssha256
