@@ -1,3 +1,4 @@
+
 // jssha256 version 0.1  -  Copyright 2006 B. Poettering (GNU GPL)
 // http://point-at-infinity.org/jssha256/
 
@@ -308,8 +309,20 @@ function add(r, a, b)
 {
     var v;
     r[0] = (v = (Math.floor(a[15] / 0x8000) + Math.floor(b[15] / 0x8000)) * 19 + a[0] + b[0]) & 0xFFFF;
-    for (var i = 1; i <= 14; i++)
-        r[i] = (v = Math.floor(v / 0x10000) + a[i] + b[i]) & 0xFFFF;
+    r[1] = (v = Math.floor(v / 0x10000) + a[1] + b[1]) & 0xFFFF;
+    r[2] = (v = Math.floor(v / 0x10000) + a[2] + b[2]) & 0xFFFF;
+    r[3] = (v = Math.floor(v / 0x10000) + a[3] + b[3]) & 0xFFFF;
+    r[4] = (v = Math.floor(v / 0x10000) + a[4] + b[4]) & 0xFFFF;
+    r[5] = (v = Math.floor(v / 0x10000) + a[5] + b[5]) & 0xFFFF;
+    r[6] = (v = Math.floor(v / 0x10000) + a[6] + b[6]) & 0xFFFF;
+    r[7] = (v = Math.floor(v / 0x10000) + a[7] + b[7]) & 0xFFFF;
+    r[8] = (v = Math.floor(v / 0x10000) + a[8] + b[8]) & 0xFFFF;
+    r[9] = (v = Math.floor(v / 0x10000) + a[9] + b[9]) & 0xFFFF;
+    r[10] = (v = Math.floor(v / 0x10000) + a[10] + b[10]) & 0xFFFF;
+    r[11] = (v = Math.floor(v / 0x10000) + a[11] + b[11]) & 0xFFFF;
+    r[12] = (v = Math.floor(v / 0x10000) + a[12] + b[12]) & 0xFFFF;
+    r[13] = (v = Math.floor(v / 0x10000) + a[13] + b[13]) & 0xFFFF;
+    r[14] = (v = Math.floor(v / 0x10000) + a[14] + b[14]) & 0xFFFF;
     r[15] = Math.floor(v / 0x10000) + a[15] % 0x8000 + b[15] % 0x8000;
 }
 
@@ -317,9 +330,21 @@ function sub(r, a, b)
 {
     var v;
     r[0] = (v = 0x80000 + (Math.floor(a[15] / 0x8000) - Math.floor(b[15] / 0x8000) - 1) * 19 + a[0] - b[0]) & 0xFFFF;
-    for (var i = 1; i <= 14; i++)
-        r[i] = (v = Math.floor(v / 0x10000) + 0x7fff8 + a[i] - b[i]) & 0xFFFF;
-    r[15] = Math.floor(v / 0x10000) + 0x7ff8 + a[15]%0x8000 - b[15]%0x8000;
+    r[1] = (v = Math.floor(v / 0x10000) + 0x7fff8 + a[1] - b[1]) & 0xFFFF;
+    r[2] = (v = Math.floor(v / 0x10000) + 0x7fff8 + a[2] - b[2]) & 0xFFFF;
+    r[3] = (v = Math.floor(v / 0x10000) + 0x7fff8 + a[3] - b[3]) & 0xFFFF;
+    r[4] = (v = Math.floor(v / 0x10000) + 0x7fff8 + a[4] - b[4]) & 0xFFFF;
+    r[5] = (v = Math.floor(v / 0x10000) + 0x7fff8 + a[5] - b[5]) & 0xFFFF;
+    r[6] = (v = Math.floor(v / 0x10000) + 0x7fff8 + a[6] - b[6]) & 0xFFFF;
+    r[7] = (v = Math.floor(v / 0x10000) + 0x7fff8 + a[7] - b[7]) & 0xFFFF;
+    r[8] = (v = Math.floor(v / 0x10000) + 0x7fff8 + a[8] - b[8]) & 0xFFFF;
+    r[9] = (v = Math.floor(v / 0x10000) + 0x7fff8 + a[9] - b[9]) & 0xFFFF;
+    r[10] = (v = Math.floor(v / 0x10000) + 0x7fff8 + a[10] - b[10]) & 0xFFFF;
+    r[11] = (v = Math.floor(v / 0x10000) + 0x7fff8 + a[11] - b[11]) & 0xFFFF;
+    r[12] = (v = Math.floor(v / 0x10000) + 0x7fff8 + a[12] - b[12]) & 0xFFFF;
+    r[13] = (v = Math.floor(v / 0x10000) + 0x7fff8 + a[13] - b[13]) & 0xFFFF;
+    r[14] = (v = Math.floor(v / 0x10000) + 0x7fff8 + a[14] - b[14]) & 0xFFFF;
+    r[15] = Math.floor(v / 0x10000) + 0x7ff8 + a[15] % 0x8000 - b[15] % 0x8000;
 }
 
 
@@ -526,10 +551,20 @@ function mul(r, a, b) {
         b[15] + b[7], b[14] + b[6], b[13] + b[5], b[12] + b[4], b[11] + b[3], b[10] + b[2], b[9] + b[1], b[8] + b[0]);
     var v;
     r[0] = (v = 0x800000 + z[0] + (y[8] -x[8] -z[8] + x[0] -0x80) * 38) & 0xFFFF;
-    for (var i = 9; i <= 15; i++)
-        r[i-8] = (v = 0x7fff80 + Math.floor(v / 0x10000) + z[i-8] + (y[i] -x[i] -z[i] + x[i-8]) * 38) & 0xFFFF;
-    for (var i = 0; i <= 6; i++)
-        r[i+8] = (v = 0x7fff80 + Math.floor(v / 0x10000) + z[i+8] + y[i] -x[i] -z[i] + x[i+8] * 38) & 0xFFFF;
+    r[1] = (v = 0x7fff80 + Math.floor(v / 0x10000) + z[1] + (y[9] -x[9] -z[9] + x[1]) * 38) & 0xFFFF;
+    r[2] = (v = 0x7fff80 + Math.floor(v / 0x10000) + z[2] + (y[10] -x[10] -z[10] + x[2]) * 38) & 0xFFFF;
+    r[3] = (v = 0x7fff80 + Math.floor(v / 0x10000) + z[3] + (y[11] -x[11] -z[11] + x[3]) * 38) & 0xFFFF;
+    r[4] = (v = 0x7fff80 + Math.floor(v / 0x10000) + z[4] + (y[12] -x[12] -z[12] + x[4]) * 38) & 0xFFFF;
+    r[5] = (v = 0x7fff80 + Math.floor(v / 0x10000) + z[5] + (y[13] -x[13] -z[13] + x[5]) * 38) & 0xFFFF;
+    r[6] = (v = 0x7fff80 + Math.floor(v / 0x10000) + z[6] + (y[14] -x[14] -z[14] + x[6]) * 38) & 0xFFFF;
+    r[7] = (v = 0x7fff80 + Math.floor(v / 0x10000) + z[7] + (y[15] -x[15] -z[15] + x[7]) * 38) & 0xFFFF;
+    r[8] = (v = 0x7fff80 + Math.floor(v / 0x10000) + z[8] + y[0] -x[0] -z[0] + x[8] * 38) & 0xFFFF;
+    r[9] = (v = 0x7fff80 + Math.floor(v / 0x10000) + z[9] + y[1] -x[1] -z[1] + x[9] * 38) & 0xFFFF;
+    r[10] = (v = 0x7fff80 + Math.floor(v / 0x10000) + z[10] + y[2] -x[2] -z[2] + x[10] * 38) & 0xFFFF;
+    r[11] = (v = 0x7fff80 + Math.floor(v / 0x10000) + z[11] + y[3] -x[3] -z[3] + x[11] * 38) & 0xFFFF;
+    r[12] = (v = 0x7fff80 + Math.floor(v / 0x10000) + z[12] + y[4] -x[4] -z[4] + x[12] * 38) & 0xFFFF;
+    r[13] = (v = 0x7fff80 + Math.floor(v / 0x10000) + z[13] + y[5] -x[5] -z[5] + x[13] * 38) & 0xFFFF;
+    r[14] = (v = 0x7fff80 + Math.floor(v / 0x10000) + z[14] + y[6] -x[6] -z[6] + x[14] * 38) & 0xFFFF;
     r[15] = 0x7fff80 + Math.floor(v / 0x10000) + z[15] + y[7] -x[7] -z[7] + x[15] * 38;
     reduce(r);
 }
