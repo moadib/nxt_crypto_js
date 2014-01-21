@@ -1,8 +1,8 @@
 Tests = TestCase("Tests");
 
 Tests.prototype.testSign = function() {
-    var message = "Hello World!";
-    var secretPhrase = "secretPhrase";
+    var message = "48656c6c6f20576f726c6421";   // "Hello World!"
+    var secretPhrase = "736563726574506872617365"; "secretPhrase"
     var signature = crypto_sign(message, secretPhrase);
     assertEquals("af60d3f0e20d431cb1d35691221c5302f1de93448dca16d3100ba014d8d0a10bf5b6c43db210e7b056ba623783e717b7fb98446faee1859f2f4f077418c448e7", signature);
 };
