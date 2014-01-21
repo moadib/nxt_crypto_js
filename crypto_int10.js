@@ -1175,8 +1175,15 @@ function curve25519_curve(Z, k, P)
     curve25519_core(Z, null, k, P);
 }
 
+hex_str_to_array = function (str) {
+	return str.match(/../g).map( function(chars){ return parseInt(chars,16) });
+}
+
 // Crypto
 function crypto_sign(message, secretPhrase) {
+	message = hex_str_to_array(message);
+    secretPhrase = hex_str_to_array(secretPhrase);
+
     var P = new Array(32);
     var s = new Array(32);
     var k = SHA256_hash(secretPhrase);
@@ -1204,10 +1211,6 @@ function crypto_sign(message, secretPhrase) {
 }
 
 function crypto_verify(signature, message, publicKey) {
-    hex_str_to_array = function (str) {
-        return str.match(/../g).map( function(chars){ return parseInt(chars,16) });
-    }
-
     signature = hex_str_to_array(signature);
     message = hex_str_to_array(message);
     publicKey = hex_str_to_array(publicKey);
